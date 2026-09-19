@@ -1,73 +1,116 @@
-# React + TypeScript + Vite
+# AI-Powered Invoice Generator & Intelligence Platform
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A intelligent, prompt-driven invoicing system with dual-engine AI entity extraction, Retrieval-Augmented Generation (RAG) for customer directory & product catalog lookups, deterministic financial arithmetic, interactive missing-field detection, and live inference transparency telemetry.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🌟 Key Features
 
-## React Compiler
+1. **Natural Language Invoice Generation**
+   - Describe invoices in free-form English (e.g. _"Invoice Acme Corp for 2 Website Development packages, due in 15 days"_).
+   - Dual-engine architecture:
+     - **Google Gemini AI** (`gemini-flash-lite-latest`) for structured entity extraction.
+     - **Smart Heuristic Fallback Engine** providing offline, regex & NLP-based parsing if no API key is provided.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+2. **RAG (Retrieval-Augmented Generation)**
+   - Local directory lookup for customer profiles, GSTINs, addresses, and contacts.
+   - Catalog matching for standard services, hourly rates, and standard pricing.
 
-## Expanding the ESLint configuration
+3. **Deterministic Financial Arithmetic**
+   - LLMs are never allowed to perform math calculations.
+   - A dedicated calculation engine guarantees exact subtotal, SGST, CGST, IGST, discount, and total amounts.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+4. **Missing Mandatory Field Detection & Interactive Banner**
+   - Automatically detects missing critical details (such as unknown clients or unpriced custom line items).
+   - Displays 1-click quick-fill prompt chips to complete required details or proceed with reasonable defaults.
 
-```js
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
+5. **Inference Transparency & Audit Panel**
+   - Discloses explicitly which fields were directly stated by the user vs. inferred by RAG or default settings.
+   - Shows engine telemetry (Gemini AI vs Heuristic Engine) for full auditability.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+6. **Professional Invoicing Experience**
+   - Real-time live invoice preview.
+   - Custom branding with logo and signature upload & crop tool.
+   - Native Print to PDF export and Copy JSON.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+---
+
+## 🏗️ Architecture
+
+```
+├── Invoice-AI-Frontend-          # Client Application (React 18 + Vite + TailwindCSS v4)
+│   ├── src/
+│   │   ├── componenets/         # UI Panels (Left prompt & chips, Right invoice preview)
+│   │   ├── types/               # TypeScript models & telemetry interfaces
+│   │   └── utils/               # Crop & formatting utilities
+│   └── vite.config.ts           # Development proxy (/api -> localhost:5000)
+│
+└── server/                      # Backend Service (Node.js + Express + TypeScript)
+    ├── src/
+    │   ├── data/knowledgeBase.ts # Seed client directory & product catalog
+    │   ├── services/ragService.ts    # Customer & service catalog retriever
+    │   ├── services/llmService.ts    # Gemini API + Heuristic fallback
+    │   ├── services/invoiceEngine.ts # Deterministic math & validator
+    │   └── server.ts                 # Express REST API
+    └── .env.example
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from "eslint-plugin-react-x";
-import reactDom from "eslint-plugin-react-dom";
+## 🚀 Quick Start Guide
 
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs["recommended-typescript"],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) (v20+ recommended)
+- Optional: Free [Google Gemini API Key](https://aistudio.google.com/app/apikey)
+
+### 1. Setup Backend Server
+
+```bash
+cd server
+npm install
+cp .env.example .env
+```
+
+_(Optional)_ Add your Gemini API key inside `server/.env`:
+
+```env
+PORT=5000
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+> **Note**: If `GEMINI_API_KEY` is not provided, the server seamlessly falls back to the smart heuristic extraction engine!
+
+Start the backend server:
+
+```bash
+npm run dev
+```
+
+The server will run on `http://localhost:5000`.
+
+### 2. Setup Frontend Client
+
+In a new terminal window:
+
+```bash
+npm install
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+---
+
+## 🧪 Testing & Linting
+
+```bash
+# Check code style & linter
+npm run lint
+
+# Check prettier code formatting
+npm run format:check
+
+# Production build verification
+npm run build
 ```

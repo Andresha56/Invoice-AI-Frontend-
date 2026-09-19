@@ -5,12 +5,19 @@ import type { AddOn } from "@/constant/add-on";
 import { AddOnButton } from "../Add-on/addOn-button";
 import { FileHeader } from "./header";
 import { Button } from "../button";
+import { getCroppedImg } from "@/utils/cropImage";
 
 interface FileUploaderProps {
   addOn: AddOn;
+  onUpload?: (addOnId: string, base64: string) => void;
+  isUploaded?: boolean;
 }
 
-export const FileUploader = ({ addOn }: FileUploaderProps) => {
+export const FileUploader = ({
+  addOn,
+  onUpload,
+  isUploaded,
+}: FileUploaderProps) => {
   const [image, setImage] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -27,12 +34,18 @@ export const FileUploader = ({ addOn }: FileUploaderProps) => {
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
 
-  const handleSave = useCallback(() => {
-    // just to ignore husky check
-    alert(croppedAreaPixels);
+  const handleSave = useCallback(async () => {
+    if (image && croppedAreaPixels) {
+      try {
+        const croppedBase64 = await getCroppedImg(image, croppedAreaPixels);
+        onUpload?.(addOn.id, croppedBase64);
+      } catch (_err) {
+        // Ignore crop error
+      }
+    }
 
     setIsOpen(false);
-  }, [croppedAreaPixels]);
+  }, [image, croppedAreaPixels, onUpload, addOn.id]);
 
   const handleCancel = useCallback(() => {
     setImage(null);
@@ -66,8 +79,11 @@ export const FileUploader = ({ addOn }: FileUploaderProps) => {
   return (
     <>
       {/* Same Add-on Card */}
-
-      <AddOnButton addOn={addOn} handleFileClick={handleOpen} />
+      <AddOnButton
+        addOn={addOn}
+        handleFileClick={handleOpen}
+        isUploaded={isUploaded}
+      />
 
       {/* Upload / Crop Modal */}
       {isOpen && (
