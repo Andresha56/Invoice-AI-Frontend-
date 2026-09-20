@@ -1,13 +1,27 @@
 # Dependencies
 node_modules/
+app-frontend/node_modules/
+server/node_modules/
 
-# Environment variables
+# Environment variables (strict protection against secret leaks)
 .env
 .env.*
+!.env.example
+server/.env
+server/.env.*
+!server/.env.example
+app-frontend/.env
+app-frontend/.env.*
+!app-frontend/.env.example
 
 # Build output
 dist/
 dist-ssr/
+app-frontend/dist/
+server/dist/
+
+# Local config
+*.local
 
 # Logs
 logs/
@@ -18,18 +32,13 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Local config
-*.local
-
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea/
 
-# OS
+# OS & Temp
 .DS_Store
-
-# Visual Studio
 *.suo
 *.ntvs*
 *.njsproj

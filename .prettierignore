@@ -1,0 +1,7 @@
+dist
+node_modules
+app-frontend/dist
+app-frontend/node_modules
+server/dist
+server/node_modules
+.husky
