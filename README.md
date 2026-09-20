@@ -1,6 +1,6 @@
 # AI-Powered Invoice Generator & Intelligence Platform
 
-A intelligent, prompt-driven invoicing system with dual-engine AI entity extraction, Retrieval-Augmented Generation (RAG) for customer directory & product catalog lookups, deterministic financial arithmetic, interactive missing-field detection, and live inference transparency telemetry.
+An intelligent, prompt-driven invoicing system with dual-engine AI entity extraction, Retrieval-Augmented Generation (RAG) for customer directory & product catalog lookups, deterministic financial arithmetic, interactive missing-field detection, and live inference transparency telemetry.
 
 ---
 
@@ -38,7 +38,7 @@ A intelligent, prompt-driven invoicing system with dual-engine AI entity extract
 ## 🏗️ Architecture
 
 ```
-├── Invoice-AI-Frontend-          # Client Application (React 18 + Vite + TailwindCSS v4)
+├── app-frontend/                 # Client Application (React 18 + Vite + TailwindCSS v4)
 │   ├── src/
 │   │   ├── componenets/         # UI Panels (Left prompt & chips, Right invoice preview)
 │   │   ├── types/               # TypeScript models & telemetry interfaces
@@ -94,6 +94,7 @@ The server will run on `http://localhost:5000`.
 In a new terminal window:
 
 ```bash
+cd app-frontend
 npm install
 npm run dev
 ```
@@ -105,6 +106,8 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 ## 🧪 Testing & Linting
 
 ```bash
+cd app-frontend
+
 # Check code style & linter
 npm run lint
 

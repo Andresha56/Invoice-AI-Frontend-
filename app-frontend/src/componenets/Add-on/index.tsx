@@ -1,5 +1,5 @@
 import type { FC } from "react";
-import { ADD_ON_Type, type AddOn } from "@/constant/add-on";
+import { ADD_ON_Type, type AddOn } from "@/archetype/add-on";
 import { FileUploader } from "../file-uploader";
 import { AddOnButton } from "./addOn-button";
 

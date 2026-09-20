@@ -7,7 +7,8 @@ import {
   AlertCircle,
   Plus,
 } from "lucide-react";
-import { ADD_ONS, type AddOn } from "@/constant/add-on";
+import { ADD_ONS, type AddOn } from "@/archetype/add-on";
+
 import { MaxTextLength as maxLength, SamplePrompts } from "@/constant";
 import { AddOnButtons } from "../Add-on";
 import type { InvoiceAddons, MissingFieldInfo } from "@/types/invoice";
