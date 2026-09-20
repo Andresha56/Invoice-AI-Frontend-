@@ -6,8 +6,11 @@ import {
   MOCK_CATALOG,
   MOCK_CLIENTS,
 } from "./data/knowledgeBase.js";
-import { invoiceEngine } from "./services/invoiceEngine.js";
-import { llmService } from "./services/llmService.js";
+import {
+  assembleInvoice,
+  checkMissingDetails,
+} from "./services/invoiceEngine.js";
+import { extractEntities } from "./services/llmService.js";
 import type { GenerateInvoiceRequest } from "./types.js";
 
 const app = express();
@@ -63,10 +66,10 @@ app.post("/api/invoice/generate", async (req, res) => {
     }
 
     // Step 1: Lightweight Entity Extraction (LLM or Heuristic Fallback)
-    const { entities, source } = await llmService.extractEntities(prompt);
+    const { entities, source } = await extractEntities(prompt);
 
     // Step 2: Validate mandatory details
-    const missingDetails = invoiceEngine.checkMissingDetails(entities);
+    const missingDetails = checkMissingDetails(entities);
 
     if (missingDetails.length > 0 && !allowDefaults) {
       res.json({
@@ -80,7 +83,7 @@ app.post("/api/invoice/generate", async (req, res) => {
     }
 
     // Step 3: RAG Knowledge Retrieval + Deterministic Assembly
-    const invoice = invoiceEngine.assembleInvoice(entities, addons, source);
+    const invoice = assembleInvoice(entities, addons, source);
 
     console.log(
       `[Invoice Generated] Engine: ${source.toUpperCase()} (AI Gemini: ${
