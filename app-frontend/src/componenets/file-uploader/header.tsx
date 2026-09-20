@@ -1,4 +1,4 @@
-import type { AddOn } from "@/constant/add-on";
+import type { AddOn } from "@/archetype/add-on";
 
 export const FileHeader = ({
   addOn,

@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import Cropper, { type Area } from "react-easy-crop";
-import type { AddOn } from "@/constant/add-on";
+import type { AddOn } from "@/archetype/add-on";
 import { AddOnButton } from "../Add-on/addOn-button";
 import { FileHeader } from "./header";
 import { Button } from "../button";
