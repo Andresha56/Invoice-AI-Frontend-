@@ -32,8 +32,7 @@ export const generateInvoice = async (req: Request, res: Response) => {
       });
       return;
     }
-
-    const invoice = invoiceEngine.assembleInvoice(
+    const invoice = await invoiceEngine.assembleInvoice(
       entities,
       addons,
       source,
@@ -43,7 +42,7 @@ export const generateInvoice = async (req: Request, res: Response) => {
       `[Invoice Generated] Engine: ${source.toUpperCase()} | Client: ${invoice.client.companyName} | Total: ${invoice.currencySymbol}${invoice.grandTotal}`,
     );
 
-    res.json({
+    res.json({  
       success: true,
       data: invoice,
     });

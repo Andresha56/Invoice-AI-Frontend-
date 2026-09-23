@@ -1,0 +1,9 @@
+node_modules/
+dist/
+
+# Real secrets — never commit. Copy .env.example instead.
+.env
+
+# Persisted runtime state (invoice number counter + its lock file).
+data/invoice-counter.json
+data/invoice-counter.json.lock

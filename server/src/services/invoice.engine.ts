@@ -1,5 +1,11 @@
 import { ragService } from "./ragService.js";
-import {DEFAULT_DUE_DAYS,DEFAULT_CURRENCY,DEFAULT_CURRENCY_SYMBOL} from "../constant/index.js"
+import {
+  DEFAULT_DUE_DAYS,
+  DEFAULT_CURRENCY,
+  DEFAULT_CURRENCY_SYMBOL,
+  MISSING_FIELD_DEFINITIONS,
+  InvoiceSource,
+} from "../constant/index.js";
 import type {
   ExtractedEntities,
   InferenceDetail,
@@ -10,86 +16,81 @@ import type {
 } from "../types.js";
 import { numberToWords } from "../util/numberToWords.js";
 import { buildPriceInference } from "../util/buildPriceInference.js";
-import { isInCatalog } from "../util/isInCatalog.js";
 import { buildClientInference } from "../util/buildClientInference.js";
 import { roundToTwo } from "../util/roundToTwo.js";
 import { buildTaxInference } from "../util/buildTaxInference.js";
 import { buildDueDateInference } from "../util/buildDueDateInference.js";
 import { buildCurrencyInference } from "../util/buildCurrencyInference.js";
 import { nextInvoiceNumber } from "../util/getNextInvoiceNumber.js";
+import { resolveDiscountPercentage } from "../util/getDiscountedValue.js";
+import { isUnpricedNovelItem } from "../util/getUnPricesItem.js";
+import { computeTaxTotal } from "../util/geComputedTotalTax.js";
+import { computeDueDate } from "../util/getComputedDueDate.js";
 
-
-type InvoiceSource = "llm" | "heuristic";
 
 const toDateString = (date: Date): string => date.toISOString().split("T")[0];
 
-/**
- * Checks for missing mandatory invoice details.
- */
 export const checkMissingDetails = (
   entities: ExtractedEntities,
 ): MissingFieldInfo[] => {
   const missing: MissingFieldInfo[] = [];
 
-  // 1. Mandatory client check
-  if (!entities.clientQuery || entities.clientQuery.trim() === "") {
-    missing.push({
-      field: "client",
-      label: "Client / Company Name",
-      message:
-        "Specify who this invoice is billed to (e.g. 'for ABC Ltd' or 'to Acme Corp').",
-      quickSuggestions: ["for ABC Ltd", "for Acme Corp", "for Infosys"],
-    });
+  if (!entities.clientQuery) {
+    missing.push(MISSING_FIELD_DEFINITIONS.client);
   }
 
-  // 2. Mandatory items & price check
   if (!entities.items || entities.items.length === 0) {
-    missing.push({
-      field: "item",
-      label: "Service / Product",
-      message: "Specify what service or product you are invoicing for.",
-      quickSuggestions: [
-        "for 2 logo designs",
-        "for Website Development",
-        "for SEO Audit",
-      ],
-    });
-  } else {
-    // An item is "unpriced" if it has no explicit price AND isn't in the catalog
-    const hasUnpricedNovelItem = entities.items.some((item) => {
-      if (item.explicitUnitPrice !== undefined && item.explicitUnitPrice > 0) {
-        return false;
-      }
-      return !isInCatalog(item.queryName);
-    });
-
-    if (hasUnpricedNovelItem) {
-      missing.push({
-        field: "price",
-        label: "Item Price / Rate",
-        message:
-          "Custom service not found in your catalog. Please state a price (e.g. 'at ₹5,000 each').",
-        quickSuggestions: [
-          "at ₹5,000 each",
-          "at ₹15,000 each",
-          "at ₹25,000 each",
-        ],
-      });
-    }
+    missing.push(MISSING_FIELD_DEFINITIONS.item);
+  } else if (entities.items.some(isUnpricedNovelItem)) {
+    missing.push(MISSING_FIELD_DEFINITIONS.price);
   }
 
   return missing;
 };
 
-/**
- * Assembles a complete, mathematically verified invoice with explicit vs
- * inferred telemetry.
- */
-export const assembleInvoice = (
+/** Resolves a single extracted line item against the catalog and computes its totals. */
+const resolveLineItem = (
+  rawItem: ExtractedEntities["items"][number],
+  index: number,
+  taxOverride: number | undefined,
+  currencySymbol: string,
+): { item: InvoiceItem; inference: InferenceDetail } => {
+  const catalogResult = ragService.matchCatalogItem(
+    rawItem.queryName,
+    rawItem.explicitUnitPrice,
+    rawItem.explicitTaxRate ?? taxOverride,
+  );
+
+  const quantity = Math.max(1, rawItem.quantity || 1);
+  const unitPrice = catalogResult.unitPrice;
+  const lineTotal = roundToTwo(quantity * unitPrice);
+  const taxRate = catalogResult.taxRate;
+  const taxAmount = roundToTwo(lineTotal * (taxRate / 100));
+
+  const item: InvoiceItem = {
+    id: `item-${index + 1}`,
+    description: catalogResult.name,
+    hsnSacCode: catalogResult.hsnSacCode,
+    quantity,
+    unitPrice,
+    taxRate,
+    taxAmount,
+    total: lineTotal,
+    fromCatalog: catalogResult.fromCatalog,
+    priceSource: catalogResult.priceSource,
+  };
+
+  const inference = buildPriceInference(index, catalogResult, currencySymbol);
+
+  return { item, inference };
+};
+
+export const assembleInvoice = async (
   entities: ExtractedEntities,
   addons: InvoiceAddons = {},
   source: InvoiceSource,
-): Invoice => {
+): Promise<Invoice> => {
+  //correct till here 
   const business = ragService.getBusinessProfile();
   const {
     client,
@@ -98,90 +99,40 @@ export const assembleInvoice = (
   } = ragService.matchClient(entities.clientQuery);
 
   const currencySymbol = entities.currencySymbol || DEFAULT_CURRENCY_SYMBOL;
-  const inferences: InferenceDetail[] = [];
-  let ragEnrichedItems = 0;
+  const currency = entities.currency || DEFAULT_CURRENCY;
+  const dueDays = entities.dueDays || DEFAULT_DUE_DAYS;
 
-  // Client inference
-  inferences.push(buildClientInference(client, clientSource));
+  const inferences: InferenceDetail[] = [buildClientInference(client, clientSource)];
 
-  // Line items through RAG catalog matcher
-  const items: InvoiceItem[] = entities.items.map((rawItem, idx) => {
-    const catalogResult = ragService.matchCatalogItem(
-      rawItem.queryName,
-      rawItem.explicitUnitPrice,
-      rawItem.explicitTaxRate ?? entities.taxOverride,
-    );
+  const resolvedItems = entities.items.map((rawItem, idx) =>
+    resolveLineItem(rawItem, idx, entities.taxOverride, currencySymbol),
+  );
+  const items: InvoiceItem[] = resolvedItems.map((r) => r.item);
+  const ragEnrichedItems = items.filter((item) => item.fromCatalog).length;
 
-    if (catalogResult.fromCatalog) {
-      ragEnrichedItems++;
-    }
-
-    const quantity = Math.max(1, rawItem.quantity || 1);
-    const unitPrice = catalogResult.unitPrice;
-    const lineTotal = roundToTwo(quantity * unitPrice);
-    const taxRate = catalogResult.taxRate;
-    const taxAmount = roundToTwo(lineTotal * (taxRate / 100));
-
-    inferences.push(buildPriceInference(idx, catalogResult, currencySymbol));
-
-    return {
-      id: `item-${idx + 1}`,
-      description: catalogResult.name,
-      hsnSacCode: catalogResult.hsnSacCode,
-      quantity,
-      unitPrice,
-      taxRate,
-      taxAmount,
-      total: lineTotal,
-      fromCatalog: catalogResult.fromCatalog,
-      priceSource: catalogResult.priceSource,
-    };
-  });
-
-  // Tax, payment terms and currency inferences
   inferences.push(
+    ...resolvedItems.map((r) => r.inference),
     buildTaxInference(entities.taxOverride),
     buildDueDateInference(entities.dueDays),
     buildCurrencyInference(entities.currency, entities.currencySymbol),
   );
 
-  // Subtotal
-  const subtotal = items.reduce((acc, item) => acc + item.total, 0);
+  const subtotal = roundToTwo(items.reduce((acc, item) => acc + item.total, 0));
 
-  // Discount
-  let discountPercentage = entities.discountPercentage || 0;
-  if (addons.discount) {
-    const match = addons.discount.match(/(\d+(?:\.\d+)?)/);
-    if (match) {
-      discountPercentage = parseFloat(match[1]);
-    }
-  }
+  const discountPercentage = resolveDiscountPercentage(entities, addons);
   const discountAmount = roundToTwo(subtotal * (discountPercentage / 100));
   const taxableAmount = Math.max(0, subtotal - discountAmount);
 
-  // Tax total (discount distributed proportionally across line items)
-  const taxTotal = roundToTwo(
-    items.reduce((acc, item) => {
-      const itemTaxable =
-        item.total - (item.total / (subtotal || 1)) * discountAmount;
-      return acc + itemTaxable * (item.taxRate / 100);
-    }, 0),
-  );
-
-  // Grand total
+  const taxTotal = computeTaxTotal(items, subtotal, discountAmount);
   const grandTotal = roundToTwo(taxableAmount + taxTotal);
 
-  // Dates
   const today = new Date();
-  const dueDays = entities.dueDays || DEFAULT_DUE_DAYS;
-  const dueDate = new Date(today);
-  dueDate.setDate(dueDate.getDate() + dueDays);
-
-  const currency = entities.currency || DEFAULT_CURRENCY;
+  const dueDate = computeDueDate(today, dueDays);
+  const invoiceNumber = await nextInvoiceNumber(today);
 
   return {
-    id: `inv-${Date.now()}`,
-    invoiceNumber: nextInvoiceNumber(today),
+    id: `inv-${crypto.randomUUID()}`,
+    invoiceNumber,
     date: toDateString(today),
     dueDate: toDateString(dueDate),
     currency,
